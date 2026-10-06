@@ -180,6 +180,12 @@ function hasChanges() {
  * @param {number} studentId 生徒ID
  */
 function changeStudent(studentId) {
+    if (hasChanges() && !confirm("保存していない変更があります。変更を破棄して生徒を切り替えますか？")) {
+        // キャンセルされたら、セレクトボックスを元の生徒に戻す
+        studentSelect.value = manageStudentId;
+        return;
+    }
+
     manageStudentId = studentId;
     draftDates = getSavedDates();
     render();
@@ -211,20 +217,26 @@ function toggleWeekday(weekday) {
     render();
 }
 
-/** 編集中の予約日を、予約として保存する */
+/**
+ * 編集中の予約日を、予約として保存する。
+ * 過去の日付の予約は変更しない。保存に失敗したら、保存前の予約に戻す
+ */
 function saveDraft() {
     if (!hasChanges()) {
         return;
     }
 
-    // 編集中の予約日から外された日の予約を削除する
+    // 保存に失敗したときに元に戻すための控え
+    const backup = reservations;
+
+    // 編集中の予約日から外された日の予約を削除する（過去の日付は残す）
     reservations = reservations.filter((reservation) =>
-        reservation.studentId !== manageStudentId || draftDates.includes(reservation.date)
+        reservation.studentId !== manageStudentId || isPast(reservation.date) || draftDates.includes(reservation.date)
     );
 
-    // 編集中の予約日に追加された日の予約を、出席予定として追加する
+    // 編集中の予約日に追加された日の予約を、出席予定として追加する（過去の日付は追加しない）
     draftDates.forEach((dateString) => {
-        if (findReservation(dateString, manageStudentId) === undefined) {
+        if (!isPast(dateString) && findReservation(dateString, manageStudentId) === undefined) {
             reservations.push({ date: dateString, studentId: manageStudentId, status: PLANNED });
         }
     });
@@ -232,14 +244,19 @@ function saveDraft() {
     // 日付順、同じ日は生徒順に並べる
     reservations.sort((a, b) => a.date.localeCompare(b.date) || a.studentId - b.studentId);
 
-    if (saveReservations()) {
-        showMessage(`${getStudentName(manageStudentId)}さんの予約を保存しました`, "success");
+    if (!saveReservations()) {
+        reservations = backup;
+        return;
     }
+
+    draftDates = getSavedDates();
+    showMessage(`${getStudentName(manageStudentId)}さんの予約を保存しました`, "success");
     render();
 }
 
 /**
- * 出欠確認で表示中の日の、生徒の出欠を変更する
+ * 出欠確認で表示中の日の、生徒の出欠を変更する。
+ * 保存に失敗したら、変更前の状態に戻す
  * @param {number} studentId 生徒ID
  * @param {string} newStatus 新しい状態（出席予定 または 欠席）
  */
@@ -247,13 +264,24 @@ function changeStatus(studentId, newStatus) {
     const dateString = formatDate(viewDate);
     const reservation = findReservation(dateString, studentId);
 
-    // 予約がない、または過去の日付なら何もしない
-    if (reservation === undefined || isPast(dateString)) {
+    if (reservation === undefined) {
+        showMessage("予約が見つかりませんでした", "error");
+        return;
+    }
+    if (isPast(dateString)) {
+        showMessage("過去の日付の出欠は変更できません", "error");
         return;
     }
 
+    // 保存に失敗したときに元に戻すための控え
+    const oldStatus = reservation.status;
     reservation.status = newStatus;
-    saveReservations();
+
+    if (!saveReservations()) {
+        reservation.status = oldStatus;
+        return;
+    }
+
     showMessage(`${getStudentName(studentId)}さんを「${newStatus}」にしました`, "success");
     render();
 }
