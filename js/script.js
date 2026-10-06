@@ -33,15 +33,14 @@ const studentSelect = document.getElementById("student-select");
 const manageElement = document.getElementById("manage-area");
 const attendanceElement = document.getElementById("attendance-area");
 
-let messageTimer = null;               // メッセージを消すタイマー
-let currentView = "day";               // 出欠確認で表示中のビュー（day / week / month）
-let viewDate = new Date();             // 出欠確認の基準日。日ビューならその日、週・月ビューならその日を含む週・月を表示する
-let manageMonth = new Date();          // 予約管理で表示中の月
-manageMonth.setDate(1);                // 月の1日にそろえる
-let manageStudentId = students[0].id;  // 予約管理で選択中の生徒のid
+let messageTimer = null;                // メッセージを消すタイマー
+let currentView = "day";                // 出欠確認で表示中のビュー（day / week / month）
+let viewDate = new Date();              // 出欠確認の基準日。日ビューならその日、週・月ビューならその日を含む週・月を表示する
 
-let reservations = loadReservations("reservations");   // 全予約の配列 [{date: "2026-10-06", studentId: 1, status: "出席予定"}, ...]
-let draftDates = getSavedDates();                      // 予約管理で編集中の予約日（保存前）
+let manageMonth = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);   // 予約管理で表示中の月（その月の1日）
+let manageStudentId = students[0].id;                 // 予約管理で選択中の生徒のid
+let reservations = loadReservations("reservations");  // 全予約の配列 [{date: "2026-10-06", studentId: 1, status: "出席予定"}, ...]
+let draftDates = getSavedDates();                     // 予約管理で編集中の予約日（保存前）
 
 /**
  * localStorage から予約の配列を読み込んで返す。
@@ -103,15 +102,6 @@ function formatDate(date) {
 }
 
 /**
- * 日付を画面表示用の文字列にして返す
- * @param {Date} date 日付
- * @returns {string} 表示用の日付の文字列
- */
-function formatLabel(date) {
-    return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日（${WEEKDAYS[date.getDay()]}）`;
-}
-
-/**
  * 日付が今日より前かどうかを返す。
  * @param {string} dateString 日付（"YYYY-MM-DD" の形式）
  * @returns {boolean} 今日より前なら true
@@ -126,7 +116,7 @@ function isPast(dateString) {
  * @returns {Array} Date の配列
  */
 function getMonthDates(monthStart) {
-    // 月末の日にち = 翌月の0日目（＝今月の最終日）の日にち
+    // 翌月の0日目は今月の最終日になる
     const lastDay = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0).getDate();
     const dates = [];
 
@@ -192,23 +182,29 @@ function changeStudent(studentId) {
 }
 
 /**
- * 予約管理で曜日が押されたとき、その月のその曜日をまとめて選択または解除する。
- * 対象の日がすべて選択済みなら解除し、そうでなければまとめて選択する
+ * 表示中の月の、指定した曜日の日付を返す（過去の日付は除く）
  * @param {number} weekday 曜日（0=日〜6=土）
+ * @returns {Array} 日付の文字列の配列
  */
-function toggleWeekday(weekday) {
-    // 表示中の月で、指定された曜日の日付（過去の日付は除く）
-    const targetDates = getMonthDates(manageMonth)
+function getWeekdayDates(weekday) {
+    return getMonthDates(manageMonth)
         .filter((date) => date.getDay() === weekday)
         .map((date) => formatDate(date))
         .filter((dateString) => !isPast(dateString));
+}
 
-    const isAllSelected = targetDates.every((dateString) => draftDates.includes(dateString));
+/**
+ * 曜日が押されたとき、その月のその曜日をまとめて選択または解除する
+ * @param {number} weekday 曜日（0=日〜6=土）
+ * @param {boolean} isSelected その曜日がすでにすべて選択されていれば true
+ */
+function toggleWeekday(weekday, isSelected) {
+    const weekdayDates = getWeekdayDates(weekday);
 
-    if (isAllSelected) {
-        draftDates = draftDates.filter((dateString) => !targetDates.includes(dateString));
+    if (isSelected) {
+        draftDates = draftDates.filter((dateString) => !weekdayDates.includes(dateString));
     } else {
-        targetDates.forEach((dateString) => {
+        weekdayDates.forEach((dateString) => {
             if (!draftDates.includes(dateString)) {
                 draftDates.push(dateString);
             }
@@ -229,12 +225,12 @@ function saveDraft() {
     // 保存に失敗したときに元に戻すための控え
     const backup = reservations;
 
-    // 編集中の予約日から外された日の予約を削除する（過去の日付は残す）
+    // 編集中の予約日から外された日の予約を削除する
     reservations = reservations.filter((reservation) =>
         reservation.studentId !== manageStudentId || isPast(reservation.date) || draftDates.includes(reservation.date)
     );
 
-    // 編集中の予約日に追加された日の予約を、出席予定として追加する（過去の日付は追加しない）
+    // 編集中の予約日に追加された日の予約を、出席予定として追加する
     draftDates.forEach((dateString) => {
         if (!isPast(dateString) && findReservation(dateString, manageStudentId) === undefined) {
             reservations.push({ date: dateString, studentId: manageStudentId, status: PLANNED });
@@ -262,18 +258,15 @@ function saveDraft() {
  */
 function changeStatus(studentId, newStatus) {
     const dateString = formatDate(viewDate);
-    const reservation = findReservation(dateString, studentId);
 
-    if (reservation === undefined) {
-        showMessage("予約が見つかりませんでした", "error");
-        return;
-    }
+    // 画面を開いたまま日付をまたぎ、表示中の日が過去になっていた場合は変更しない
     if (isPast(dateString)) {
         showMessage("過去の日付の出欠は変更できません", "error");
+        render();
         return;
     }
 
-    // 保存に失敗したときに元に戻すための控え
+    const reservation = findReservation(dateString, studentId);
     const oldStatus = reservation.status;
     reservation.status = newStatus;
 
@@ -281,8 +274,6 @@ function changeStatus(studentId, newStatus) {
         reservation.status = oldStatus;
         return;
     }
-
-    showMessage(`${getStudentName(studentId)}さんを「${newStatus}」にしました`, "success");
     render();
 }
 
@@ -371,7 +362,7 @@ function renderDayView() {
     // 過去の日付は見るだけにして、ボタンを押せなくする
     const isPastDay = isPast(dateString);
     const disabledAttr = isPastDay ? "disabled" : "";
-    const pastNote = isPastDay ? `<p class="past-note">過去の日付のため、出欠は変更できません</p>` : "";
+    const pastNote = isPastDay ? `<p class="empty-message">過去の日付のため、出欠は変更できません</p>` : "";
 
     // 出席予定と欠席の一覧を作る
     let columnsHtml = "";
@@ -382,7 +373,7 @@ function renderDayView() {
         const buttonText = isPlanned ? "欠席にする" : "出席予定に戻す";
         const newStatus = isPlanned ? ABSENT : PLANNED;
 
-        let rowsHtml = list.length === 0 ? `<li class="empty-message">いません</li>` : "";
+        let rowsHtml = "";
         list.forEach((reservation) => {
             rowsHtml += `
           <li class="student-row">
@@ -423,19 +414,18 @@ function renderCalendarView() {
         dates = [0, 1, 2, 3, 4, 5, 6].map((i) => new Date(year, month, viewDate.getDate() - viewDate.getDay() + i));
         limit = 6;
     } else {
-        // その月の1日から月末まで。1日の曜日の分だけ空白マスを置く（前後の月の日付は表示しない）
+        // その月の1日から月末まで。前後の月の日付は表示せず、1日より前は空白マスにする
         const firstDay = new Date(year, month, 1);
         dates = getMonthDates(firstDay);
         blankCount = firstDay.getDay();
         limit = 2;
     }
 
-    // 曜日と空白マス
     let cellsHtml = "";
     WEEKDAYS.forEach((weekday) => {
         cellsHtml += `<span class="weekday">${weekday}</span>`;
     });
-    cellsHtml += `<span class="calendar-blank"></span>`.repeat(blankCount);
+    cellsHtml += "<span></span>".repeat(blankCount);
 
     const todayString = formatDate(new Date());
     dates.forEach((date) => {
@@ -459,22 +449,25 @@ function renderCalendarView() {
 /** 出欠確認タブを画面に表示する */
 function renderAttendance() {
     const labels = VIEW_LABELS[currentView];
+    const year = viewDate.getFullYear();
+    const month = viewDate.getMonth() + 1;
 
-    // 日・週・月の切り替えボタン
     let switchHtml = "";
     Object.keys(VIEW_LABELS).forEach((view) => {
         const activeClass = view === currentView ? "active" : "";
         switchHtml += `<button class="view-button ${activeClass}" data-view="${view}">${VIEW_LABELS[view].name}</button>`;
     });
 
-    // 表示している範囲の見出しと、表示の中身
-    let title;
-    if (currentView === "day") {
-        title = formatLabel(viewDate);
-    } else if (currentView === "week") {
-        title = `${formatLabel(viewDate)} を含む週`;
-    } else {
-        title = `${viewDate.getFullYear()}年${viewDate.getMonth() + 1}月`;
+    const dayLabel = `${year}年${month}月${viewDate.getDate()}日（${WEEKDAYS[viewDate.getDay()]}）`;
+    let title = dayLabel;
+    if (currentView === "week") {
+        const startDate = new Date(year, month - 1, viewDate.getDate() - viewDate.getDay());
+        const endDate = new Date(year, month - 1, viewDate.getDate() - viewDate.getDay() + 6);
+        const startLabel = `${startDate.getFullYear()}年${startDate.getMonth() + 1}月${startDate.getDate()}日`;
+        const endLabel = `${endDate.getFullYear()}年${endDate.getMonth() + 1}月${endDate.getDate()}日`;
+        title = `${startLabel}〜${endLabel}`;
+    } else if (currentView === "month") {
+        title = `${year}年${month}月`;
     }
     const bodyHtml = currentView === "day" ? renderDayView() : renderCalendarView();
 
@@ -495,31 +488,35 @@ function renderManage() {
     const month = manageMonth.getMonth() + 1;
     const monthPrefix = formatDate(manageMonth).slice(0, 7);
 
-    // 表示中の月の予約日数と欠席日数（編集中の内容で数える）
-    const monthDates = draftDates.filter((dateString) => dateString.startsWith(monthPrefix));
-    const absentCount = reservations.filter((reservation) =>
-        reservation.studentId === manageStudentId && reservation.status === ABSENT && monthDates.includes(reservation.date)
-    ).length;
+    // 予約した日数と欠席した日数は、保存済みの予約から数える（編集中の内容は含めない）
+    const monthReservations = reservations.filter((reservation) =>
+        reservation.studentId === manageStudentId && reservation.date.startsWith(monthPrefix)
+    );
+    const absentCount = monthReservations.filter((reservation) => reservation.status === ABSENT).length;
 
-    // 選択中の生徒の名前と、予約の状況
     let summaryHtml = `<p class="student-name">${getStudentName(manageStudentId)}さん</p>`;
-    if (monthDates.length === 0) {
+    if (monthReservations.length === 0) {
         summaryHtml += `<p class="sub-text">${month}月の予約はまだありません</p>`;
     } else {
         summaryHtml += `
-      <p class="sub-text">予約した日数：${monthDates.length}日</p>
+      <p class="sub-text">予約した日数：${monthReservations.length}日</p>
       <p class="sub-text">欠席した日数：${absentCount}日</p>
     `;
     }
 
-    // 曜日（押すと、その月のその曜日をまとめて選べる）と空白マス
+    // 曜日のボタン。その曜日の日付がすべて選択されていたら青にする
     let cellsHtml = "";
     WEEKDAYS.forEach((weekday, index) => {
-        cellsHtml += `<button class="weekday weekday-button" data-weekday="${index}">${weekday}</button>`;
-    });
-    cellsHtml += `<span class="calendar-blank"></span>`.repeat(manageMonth.getDay());
+        const weekdayDates = getWeekdayDates(index);
+        const isAllSelected = weekdayDates.length > 0 && weekdayDates.every((dateString) => draftDates.includes(dateString));
+        const selectedClass = isAllSelected ? "selected" : "";
 
-    // その月の日付を並べる（前後の月の日付は表示しない）
+        cellsHtml += `<button class="weekday weekday-button ${selectedClass}" data-weekday="${index}">${weekday}</button>`;
+    });
+
+    // 前後の月の日付は表示せず、1日より前は空白マスにする
+    cellsHtml += "<span></span>".repeat(manageMonth.getDay());
+
     getMonthDates(manageMonth).forEach((date) => {
         const dateString = formatDate(date);
         const saved = findReservation(dateString, manageStudentId);
@@ -535,7 +532,6 @@ function renderManage() {
 
         // 保存済みの内容と違う日（まだ保存していない変更）は、枠線を破線にする
         const changedClass = isSelected !== (saved !== undefined) ? "changed" : "";
-        // 過去の日付は押せなくする
         const disabledAttr = isPast(dateString) ? "disabled" : "";
 
         cellsHtml += `
@@ -583,34 +579,22 @@ document.addEventListener("click", (event) => {
     if (button.classList.contains("view-button")) {
         currentView = button.dataset.view;
         render();
-        return;
-    }
-    if (button.classList.contains("attendance-nav-button")) {
+    } else if (button.classList.contains("attendance-nav-button")) {
         moveViewDate(Number(button.dataset.direction));
-        return;
-    }
-    if (button.classList.contains("status-button")) {
+    } else if (button.classList.contains("status-button")) {
         changeStatus(Number(button.dataset.id), button.dataset.status);
-        return;
-    }
-    if (button.classList.contains("day-cell")) {
-        // 押した日の日ビューに切り替える
+    } else if (button.classList.contains("day-cell")) {
+        // 押した日の日ビューを表示する
         const [year, month, day] = button.dataset.date.split("-").map(Number);
         viewDate = new Date(year, month - 1, day);
         currentView = "day";
         render();
-        return;
-    }
-    if (button.classList.contains("manage-nav-button")) {
+    } else if (button.classList.contains("manage-nav-button")) {
         manageMonth = new Date(manageMonth.getFullYear(), manageMonth.getMonth() + Number(button.dataset.diff), 1);
         render();
-        return;
-    }
-    if (button.classList.contains("weekday-button")) {
-        toggleWeekday(Number(button.dataset.weekday));
-        return;
-    }
-    if (button.classList.contains("reserve-cell")) {
+    } else if (button.classList.contains("weekday-button")) {
+        toggleWeekday(Number(button.dataset.weekday), button.classList.contains("selected"));
+    } else if (button.classList.contains("reserve-cell")) {
         const dateString = button.dataset.date;
         if (draftDates.includes(dateString)) {
             draftDates = draftDates.filter((draftDate) => draftDate !== dateString);
@@ -618,11 +602,8 @@ document.addEventListener("click", (event) => {
             draftDates.push(dateString);
         }
         render();
-        return;
-    }
-    if (button.classList.contains("save-button")) {
+    } else if (button.classList.contains("save-button")) {
         saveDraft();
-        return;
     }
 });
 

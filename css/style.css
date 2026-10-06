@@ -5,7 +5,6 @@
 body {
     margin: 0;
     font-family: sans-serif;
-    font-size: 16px;
     background-color: #F7FAFC;
     color: #273642;
 }
@@ -39,14 +38,19 @@ button:disabled {
     cursor: default;
 }
 
-.tabs {
+.tabs,
+.view-switch {
     display: flex;
     gap: 4px;
+}
+
+.tabs {
     margin-bottom: 10px;
 }
 
 .tab-button,
 .view-button {
+    flex: 1;
     background-color: #ddd;
     color: #333;
 }
@@ -55,10 +59,6 @@ button:disabled {
 .view-button.active {
     background-color: #2386ad;
     color: white;
-}
-
-.tab-button {
-    flex: 1;
 }
 
 .tab-panel {
@@ -104,10 +104,6 @@ button:disabled {
     font-size: 16px;
 }
 
-.sub-text {
-    color: #666;
-}
-
 .student-summary {
     margin: 12px 0;
 }
@@ -118,8 +114,9 @@ button:disabled {
     font-weight: bold;
 }
 
-.student-summary .sub-text {
+.sub-text {
     margin: 2px 0;
+    color: #666;
 }
 
 .nav {
@@ -188,17 +185,21 @@ button:disabled {
     justify-content: center;
 }
 
-/* 予約管理：出席予定は青、欠席は赤 */
-.reserve-cell.planned {
+/* 予約管理：出席予定は青、欠席は赤。選択済みの曜日のボタンも青にする */
+.reserve-cell.planned,
+.weekday-button.selected {
     background-color: #2f7de1;
-    border-color: #2f7de1;
     color: white;
 }
 
 .reserve-cell.absent {
     background-color: #e5484d;
-    border-color: #e5484d;
     color: white;
+}
+
+.reserve-cell.planned,
+.reserve-cell.absent {
+    border-color: transparent;
 }
 
 /* まだ保存していない変更がある日は、枠線を破線にする */
@@ -219,7 +220,8 @@ button:disabled {
     font-size: 18px;
 }
 
-.save-button:disabled {
+.save-button:disabled,
+.status-button:disabled {
     background-color: #ddd;
     color: #999;
 }
@@ -261,11 +263,6 @@ button:disabled {
 .day-summary .badge {
     padding: 10px 18px;
     font-size: 22px;
-}
-
-.past-note {
-    text-align: center;
-    color: #666;
 }
 
 .day-columns {
@@ -314,23 +311,8 @@ button:disabled {
     min-height: 44px;
 }
 
-.status-button:disabled {
-    background-color: #ccc;
-    color: #888;
-}
-
-.view-switch {
-    display: flex;
-    gap: 4px;
-}
-
-.view-button {
-    flex: 1;
-}
-
 .day-cell {
     min-height: 96px;
-    justify-content: flex-start;
 }
 
 .day-cell.past {
