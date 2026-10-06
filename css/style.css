@@ -67,8 +67,151 @@ button:disabled {
     display: block;
 }
 
+.message {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    padding: 12px;
+    text-align: center;
+    color: white;
+}
+
+.message.show {
+    display: block;
+}
+
+.message.success {
+    background-color: #2e7d32;
+}
+
+.message.error {
+    background-color: #c62828;
+}
+
 .student-select {
     margin-left: 8px;
     padding: 8px;
     font-size: 16px;
+}
+
+.sub-text {
+    color: #666;
+}
+
+.student-summary {
+    margin: 12px 0;
+}
+
+.student-name {
+    margin: 0 0 4px;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.student-summary .sub-text {
+    margin: 2px 0;
+}
+
+.nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 12px 0;
+}
+
+.nav-title {
+    margin: 0;
+    font-size: 18px;
+    text-align: center;
+}
+
+.manage-nav-button {
+    min-width: 80px;
+}
+
+/* 月カレンダー：7列。minmax(0, 1fr) にして、名前が長くても横にはみ出さないようにする */
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 4px;
+}
+
+.weekday {
+    padding: 8px 0;
+    text-align: center;
+    font-weight: bold;
+}
+
+.weekday-button {
+    background-color: #ddd;
+    color: #333;
+}
+
+.calendar-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 4px;
+    border: 1px solid #ccc;
+    background-color: white;
+    color: #273642;
+}
+
+.calendar-cell:disabled {
+    opacity: 0.45;
+}
+
+.cell-date {
+    font-weight: bold;
+}
+
+.cell-label {
+    min-height: 1em;
+    font-size: 12px;
+}
+
+.reserve-cell {
+    min-height: 56px;
+    justify-content: center;
+}
+
+/* 予約管理：出席予定は青、欠席は赤 */
+.reserve-cell.planned {
+    background-color: #2f7de1;
+    border-color: #2f7de1;
+    color: white;
+}
+
+.reserve-cell.absent {
+    background-color: #e5484d;
+    border-color: #e5484d;
+    color: white;
+}
+
+/* まだ保存していない変更がある日は、枠線を破線にする */
+.reserve-cell.changed {
+    border: 3px dashed #ff9800;
+}
+
+.unsaved-note {
+    margin: 12px 0 0;
+    color: #e65100;
+}
+
+.save-button {
+    display: block;
+    width: 100%;
+    margin-top: 12px;
+    padding: 14px;
+    font-size: 18px;
+}
+
+.save-button:disabled {
+    background-color: #ddd;
+    color: #999;
 }
