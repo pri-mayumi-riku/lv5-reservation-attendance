@@ -4,7 +4,9 @@ const ABSENT = "欠席";
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
 const VIEW_LABELS = {
-    day: { name: "日", prev: "前日", next: "翌日" }
+    day: { name: "日", prev: "前日", next: "翌日" },
+    week: { name: "週", prev: "前週", next: "翌週" },
+    month: { name: "月", prev: "前月", next: "来月" }
 };
 
 // 生徒の固定データ（名前はすべて架空）
@@ -257,11 +259,22 @@ function changeStatus(studentId, newStatus) {
 }
 
 /**
- * 出欠確認で表示する日を、前の日または次の日にずらす
+ * 出欠確認で表示する日を、前または次にずらす。
+ * 日ビューは1日、週ビューは7日、月ビューは1か月ずらす
  * @param {number} direction 動かす向き（-1: 前、1: 次）
  */
 function moveViewDate(direction) {
-    viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), viewDate.getDate() + direction);
+    const year = viewDate.getFullYear();
+    const month = viewDate.getMonth();
+    const day = viewDate.getDate();
+
+    if (currentView === "day") {
+        viewDate = new Date(year, month, day + direction);
+    } else if (currentView === "week") {
+        viewDate = new Date(year, month, day + direction * 7);
+    } else {
+        viewDate = new Date(year, month + direction, 1);
+    }
     render();
 }
 
@@ -282,23 +295,36 @@ function setupTabs() {
 }
 
 /**
- * 人数の表示（出席予定・欠席）を作成して返す
+ * 人数の表示（出席予定・欠席）と、出席予定の名前を作って返す。日・週・月ビューで共通
  * @param {Array} dayReservations その日の予約の配列
+ * @param {number} limit 表示する名前の最大人数（0なら名前は表示しない）
  * @returns {string} HTML文字列
  */
-function makeSummary(dayReservations) {
+function makeSummary(dayReservations, limit) {
     if (dayReservations.length === 0) {
         return `<span class="summary-none">予約なし</span>`;
     }
 
-    const plannedCount = dayReservations.filter((reservation) => reservation.status === PLANNED).length;
-    const absentCount = dayReservations.length - plannedCount;
+    const plannedList = dayReservations.filter((reservation) => reservation.status === PLANNED);
+    const absentCount = dayReservations.length - plannedList.length;
+
+    // 出席予定の名前を limit 人まで表示し、残りは「他◯名」にまとめる
+    let namesHtml = "";
+    if (limit > 0) {
+        plannedList.slice(0, limit).forEach((reservation) => {
+            namesHtml += `<span class="name-chip">${getStudentName(reservation.studentId)}</span>`;
+        });
+        if (plannedList.length > limit) {
+            namesHtml += `<span class="name-chip more">他${plannedList.length - limit}名</span>`;
+        }
+    }
 
     return `
       <span class="badges">
-        <span class="badge planned">出席予定 ${plannedCount}人</span>
+        <span class="badge planned">出席予定 ${plannedList.length}人</span>
         <span class="badge absent">欠席 ${absentCount}人</span>
       </span>
+      ${namesHtml}
     `;
 }
 
@@ -353,15 +379,79 @@ function renderDayView() {
     `;
 }
 
+/**
+ * 週ビューまたは月ビューの HTML を作って返す
+ * @returns {string} HTML文字列
+ */
+function renderCalendarView() {
+    const year = viewDate.getFullYear();
+    const month = viewDate.getMonth();
+    let dates;            // 表示する日付の配列
+    let blankCount = 0;   // 月の1日より前に置く空白マスの数（週ビューは0）
+    let limit;            // 1マスに表示する名前の最大人数
+
+    if (currentView === "week") {
+        // その日を含む週の、日曜日から土曜日までの7日間
+        dates = [0, 1, 2, 3, 4, 5, 6].map((i) => new Date(year, month, viewDate.getDate() - viewDate.getDay() + i));
+        limit = 6;
+    } else {
+        // その月の1日から月末まで。1日の曜日の分だけ空白マスを置く（前後の月の日付は表示しない）
+        const firstDay = new Date(year, month, 1);
+        dates = getMonthDates(firstDay);
+        blankCount = firstDay.getDay();
+        limit = 2;
+    }
+
+    // 曜日と空白マス
+    let cellsHtml = "";
+    WEEKDAYS.forEach((weekday) => {
+        cellsHtml += `<span class="weekday">${weekday}</span>`;
+    });
+    cellsHtml += `<span class="calendar-blank"></span>`.repeat(blankCount);
+
+    const todayString = formatDate(new Date());
+    dates.forEach((date) => {
+        const dateString = formatDate(date);
+        const dayReservations = reservations.filter((reservation) => reservation.date === dateString);
+        const dateText = currentView === "week" ? `${date.getMonth() + 1}月${date.getDate()}日` : `${date.getDate()}日`;
+        const pastClass = isPast(dateString) ? "past" : "";
+        const todayClass = dateString === todayString ? "today" : "";
+
+        cellsHtml += `
+      <button class="calendar-cell day-cell ${pastClass} ${todayClass}" data-date="${dateString}">
+        <span class="cell-date">${dateText}</span>
+        ${makeSummary(dayReservations, limit)}
+      </button>
+    `;
+    });
+
+    return `<div class="calendar-grid">${cellsHtml}</div>`;
+}
+
 /** 出欠確認タブを画面に表示する */
 function renderAttendance() {
     const labels = VIEW_LABELS[currentView];
 
-    // 表示している日の見出しと、表示の中身
-    const title = formatLabel(viewDate);
-    const bodyHtml = renderDayView();
+    // 日・週・月の切り替えボタン
+    let switchHtml = "";
+    Object.keys(VIEW_LABELS).forEach((view) => {
+        const activeClass = view === currentView ? "active" : "";
+        switchHtml += `<button class="view-button ${activeClass}" data-view="${view}">${VIEW_LABELS[view].name}</button>`;
+    });
+
+    // 表示している範囲の見出しと、表示の中身
+    let title;
+    if (currentView === "day") {
+        title = formatLabel(viewDate);
+    } else if (currentView === "week") {
+        title = `${formatLabel(viewDate)} を含む週`;
+    } else {
+        title = `${viewDate.getFullYear()}年${viewDate.getMonth() + 1}月`;
+    }
+    const bodyHtml = currentView === "day" ? renderDayView() : renderCalendarView();
 
     attendanceElement.innerHTML = `
+      <div class="view-switch">${switchHtml}</div>
       <div class="nav">
         <button class="attendance-nav-button" data-direction="-1">${labels.prev}</button>
         <h2 class="nav-title">${title}</h2>
@@ -462,12 +552,25 @@ document.addEventListener("click", (event) => {
         return;
     }
 
+    if (button.classList.contains("view-button")) {
+        currentView = button.dataset.view;
+        render();
+        return;
+    }
     if (button.classList.contains("attendance-nav-button")) {
         moveViewDate(Number(button.dataset.direction));
         return;
     }
     if (button.classList.contains("status-button")) {
         changeStatus(Number(button.dataset.id), button.dataset.status);
+        return;
+    }
+    if (button.classList.contains("day-cell")) {
+        // 押した日の日ビューに切り替える
+        const [year, month, day] = button.dataset.date.split("-").map(Number);
+        viewDate = new Date(year, month - 1, day);
+        currentView = "day";
+        render();
         return;
     }
     if (button.classList.contains("manage-nav-button")) {

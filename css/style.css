@@ -45,12 +45,14 @@ button:disabled {
     margin-bottom: 10px;
 }
 
-.tab-button {
+.tab-button,
+.view-button {
     background-color: #ddd;
     color: #333;
 }
 
-.tab-button.active {
+.tab-button.active,
+.view-button.active {
     background-color: #2386ad;
     color: white;
 }
@@ -315,4 +317,43 @@ button:disabled {
 .status-button:disabled {
     background-color: #ccc;
     color: #888;
+}
+
+.view-switch {
+    display: flex;
+    gap: 4px;
+}
+
+.view-button {
+    flex: 1;
+}
+
+.day-cell {
+    min-height: 96px;
+    justify-content: flex-start;
+}
+
+.day-cell.past {
+    opacity: 0.6;
+}
+
+.day-cell.today {
+    border: 2px solid #2386ad;
+}
+
+.summary-none {
+    font-size: 12px;
+    color: #999;
+}
+
+.name-chip {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+}
+
+.name-chip.more {
+    color: #666;
 }
