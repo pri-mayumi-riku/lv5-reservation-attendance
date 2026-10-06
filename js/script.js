@@ -3,6 +3,10 @@ const ABSENT = "欠席";
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
+const VIEW_LABELS = {
+    day: { name: "日", prev: "前日", next: "翌日" }
+};
+
 // 生徒の固定データ（名前はすべて架空）
 const students = [
     { id: 1, name: "山田 太郎" },
@@ -25,8 +29,11 @@ const students = [
 const messageElement = document.getElementById("message");
 const studentSelect = document.getElementById("student-select");
 const manageElement = document.getElementById("manage-area");
+const attendanceElement = document.getElementById("attendance-area");
 
 let messageTimer = null;               // メッセージを消すタイマー
+let currentView = "day";               // 出欠確認で表示中のビュー（day / week / month）
+let viewDate = new Date();             // 出欠確認の基準日。日ビューならその日、週・月ビューならその日を含む週・月を表示する
 let manageMonth = new Date();          // 予約管理で表示中の月
 manageMonth.setDate(1);                // 月の1日にそろえる
 let manageStudentId = students[0].id;  // 予約管理で選択中の生徒のid
@@ -91,6 +98,15 @@ function formatDate(date) {
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
     return `${date.getFullYear()}-${month}-${day}`;
+}
+
+/**
+ * 日付を画面表示用の文字列にして返す
+ * @param {Date} date 日付
+ * @returns {string} 表示用の日付の文字列
+ */
+function formatLabel(date) {
+    return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日（${WEEKDAYS[date.getDay()]}）`;
 }
 
 /**
@@ -220,6 +236,35 @@ function saveDraft() {
     render();
 }
 
+/**
+ * 出欠確認で表示中の日の、生徒の出欠を変更する
+ * @param {number} studentId 生徒ID
+ * @param {string} newStatus 新しい状態（出席予定 または 欠席）
+ */
+function changeStatus(studentId, newStatus) {
+    const dateString = formatDate(viewDate);
+    const reservation = findReservation(dateString, studentId);
+
+    // 予約がない、または過去の日付なら何もしない
+    if (reservation === undefined || isPast(dateString)) {
+        return;
+    }
+
+    reservation.status = newStatus;
+    saveReservations();
+    showMessage(`${getStudentName(studentId)}さんを「${newStatus}」にしました`, "success");
+    render();
+}
+
+/**
+ * 出欠確認で表示する日を、前の日または次の日にずらす
+ * @param {number} direction 動かす向き（-1: 前、1: 次）
+ */
+function moveViewDate(direction) {
+    viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), viewDate.getDate() + direction);
+    render();
+}
+
 /** タブの切り替え処理 */
 function setupTabs() {
     const tabButtons = document.querySelectorAll(".tab-button");
@@ -234,6 +279,96 @@ function setupTabs() {
             tabPanels[index].classList.add("active");
         });
     });
+}
+
+/**
+ * 人数の表示（出席予定・欠席）を作成して返す
+ * @param {Array} dayReservations その日の予約の配列
+ * @returns {string} HTML文字列
+ */
+function makeSummary(dayReservations) {
+    if (dayReservations.length === 0) {
+        return `<span class="summary-none">予約なし</span>`;
+    }
+
+    const plannedCount = dayReservations.filter((reservation) => reservation.status === PLANNED).length;
+    const absentCount = dayReservations.length - plannedCount;
+
+    return `
+      <span class="badges">
+        <span class="badge planned">出席予定 ${plannedCount}人</span>
+        <span class="badge absent">欠席 ${absentCount}人</span>
+      </span>
+    `;
+}
+
+/**
+ * 日ビューの HTML を作成して返す（人数・出席予定の一覧・欠席の一覧）
+ * @returns {string} HTML文字列
+ */
+function renderDayView() {
+    const dateString = formatDate(viewDate);
+    const dayReservations = reservations.filter((reservation) => reservation.date === dateString);
+
+    if (dayReservations.length === 0) {
+        return `<p class="empty-message">予約がありません</p>`;
+    }
+
+    // 過去の日付は見るだけにして、ボタンを押せなくする
+    const isPastDay = isPast(dateString);
+    const disabledAttr = isPastDay ? "disabled" : "";
+    const pastNote = isPastDay ? `<p class="past-note">過去の日付のため、出欠は変更できません</p>` : "";
+
+    // 出席予定と欠席の一覧を作る
+    let columnsHtml = "";
+    [PLANNED, ABSENT].forEach((status) => {
+        const list = dayReservations.filter((reservation) => reservation.status === status);
+        const isPlanned = status === PLANNED;
+        const statusClass = isPlanned ? "planned" : "absent";
+        const buttonText = isPlanned ? "欠席にする" : "出席予定に戻す";
+        const newStatus = isPlanned ? ABSENT : PLANNED;
+
+        let rowsHtml = list.length === 0 ? `<li class="empty-message">いません</li>` : "";
+        list.forEach((reservation) => {
+            rowsHtml += `
+          <li class="student-row">
+            <span>${getStudentName(reservation.studentId)}</span>
+            <button class="status-button" data-id="${reservation.studentId}" data-status="${newStatus}" ${disabledAttr}>${buttonText}</button>
+          </li>
+        `;
+        });
+
+        columnsHtml += `
+      <section class="status-column ${statusClass}">
+        <h3>${status}（${list.length}人）</h3>
+        <ul>${rowsHtml}</ul>
+      </section>
+    `;
+    });
+
+    return `
+      <div class="day-summary">${makeSummary(dayReservations, 0)}</div>
+      ${pastNote}
+      <div class="day-columns">${columnsHtml}</div>
+    `;
+}
+
+/** 出欠確認タブを画面に表示する */
+function renderAttendance() {
+    const labels = VIEW_LABELS[currentView];
+
+    // 表示している日の見出しと、表示の中身
+    const title = formatLabel(viewDate);
+    const bodyHtml = renderDayView();
+
+    attendanceElement.innerHTML = `
+      <div class="nav">
+        <button class="attendance-nav-button" data-direction="-1">${labels.prev}</button>
+        <h2 class="nav-title">${title}</h2>
+        <button class="attendance-nav-button" data-direction="1">${labels.next}</button>
+      </div>
+      ${bodyHtml}
+    `;
 }
 
 /** 予約管理タブを画面に表示する */
@@ -316,6 +451,7 @@ function renderManage() {
  * データや表示を変えた後は必ずこの関数を呼ぶ。
  */
 function render() {
+    renderAttendance();
     renderManage();
 }
 
@@ -326,6 +462,14 @@ document.addEventListener("click", (event) => {
         return;
     }
 
+    if (button.classList.contains("attendance-nav-button")) {
+        moveViewDate(Number(button.dataset.direction));
+        return;
+    }
+    if (button.classList.contains("status-button")) {
+        changeStatus(Number(button.dataset.id), button.dataset.status);
+        return;
+    }
     if (button.classList.contains("manage-nav-button")) {
         manageMonth = new Date(manageMonth.getFullYear(), manageMonth.getMonth() + Number(button.dataset.diff), 1);
         render();

@@ -67,6 +67,11 @@ button:disabled {
     display: block;
 }
 
+.empty-message {
+    text-align: center;
+    color: #666;
+}
+
 .message {
     display: none;
     position: fixed;
@@ -129,6 +134,7 @@ button:disabled {
     text-align: center;
 }
 
+.attendance-nav-button,
 .manage-nav-button {
     min-width: 80px;
 }
@@ -214,4 +220,99 @@ button:disabled {
 .save-button:disabled {
     background-color: #ddd;
     color: #999;
+}
+
+.badges {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.badge {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.badge.planned {
+    background-color: #e3efff;
+    color: #1b5fc1;
+}
+
+.badge.absent {
+    background-color: #fde8e8;
+    color: #c62828;
+}
+
+/* 日ビューの人数表示は、同じ部品を大きくして使う */
+.day-summary {
+    margin: 12px 0;
+}
+
+.day-summary .badges {
+    flex-direction: row;
+    justify-content: center;
+    gap: 8px;
+}
+
+.day-summary .badge {
+    padding: 10px 18px;
+    font-size: 22px;
+}
+
+.past-note {
+    text-align: center;
+    color: #666;
+}
+
+.day-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.status-column {
+    min-width: 0;
+    padding: 10px;
+    background-color: white;
+    border-top: 4px solid;
+}
+
+.status-column.planned {
+    border-top-color: #2f7de1;
+}
+
+.status-column.absent {
+    border-top-color: #e5484d;
+}
+
+.status-column h3 {
+    margin: 0 0 8px;
+    font-size: 18px;
+}
+
+.status-column ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.student-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid #ddd;
+}
+
+.status-button {
+    flex-shrink: 0;
+    min-height: 44px;
+}
+
+.status-button:disabled {
+    background-color: #ccc;
+    color: #888;
 }
