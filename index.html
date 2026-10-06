@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>習い事教室の予約・出欠表</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <header>
+        <h1>予約・出欠表</h1>
+    </header>
+
+    <main>
+        <!-- タブのボタン -->
+        <div class="tabs">
+            <button class="tab-button active">出欠確認</button>
+            <button class="tab-button">予約管理</button>
+        </div>
+
+        <!-- 出欠確認タブ -->
+        <section id="tab-attendance" class="tab-panel active">
+            出欠確認画面（仮）
+        </section>
+
+        <!-- 予約管理タブ -->
+        <section id="tab-manage" class="tab-panel">
+            <label for="student-select">生徒</label>
+            <select id="student-select" class="student-select"></select>
+        </section>
+    </main>
+
+    <script src="js/script.js"></script>
+</body>
+
+</html>

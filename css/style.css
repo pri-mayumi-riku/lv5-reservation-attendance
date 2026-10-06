@@ -1,0 +1,74 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: sans-serif;
+    font-size: 16px;
+    background-color: #F7FAFC;
+    color: #273642;
+}
+
+header {
+    padding: 10px;
+    background-color: #2386ad;
+    color: white;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 20px;
+}
+
+main {
+    padding: 10px;
+}
+
+button {
+    background-color: #2386ad;
+    color: white;
+    padding: 10px 14px;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+button:disabled {
+    cursor: default;
+}
+
+.tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 10px;
+}
+
+.tab-button {
+    background-color: #ddd;
+    color: #333;
+}
+
+.tab-button.active {
+    background-color: #2386ad;
+    color: white;
+}
+
+.tab-button {
+    flex: 1;
+}
+
+.tab-panel {
+    display: none;
+}
+
+.tab-panel.active {
+    display: block;
+}
+
+.student-select {
+    margin-left: 8px;
+    padding: 8px;
+    font-size: 16px;
+}
