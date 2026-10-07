@@ -70,8 +70,25 @@ button:disabled {
 }
 
 .empty-message {
+    padding: 24px 10px;
     text-align: center;
     color: #666;
+}
+
+.empty-message p {
+    margin: 8px 0;
+}
+
+.empty-message .empty-title {
+    margin-bottom: 14px;
+    color: #273642;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.manage-link-button {
+    margin-top: 14px;
+    min-width: 180px;
 }
 
 .message {
@@ -98,6 +115,16 @@ button:disabled {
     background-color: #c62828;
 }
 
+.student-selection {
+    margin-bottom: 16px;
+}
+
+.student-selection p {
+    margin: 0 0 8px;
+    font-weight: bold;
+    font-size: 20px;
+}
+
 .student-select {
     margin-left: 8px;
     padding: 8px;
@@ -105,17 +132,32 @@ button:disabled {
 }
 
 .student-summary {
-    margin: 12px 0;
+    margin-top: 30px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
 }
 
 .student-name {
     margin: 0 0 4px;
-    font-size: 20px;
+    font-size: 18px;
     font-weight: bold;
 }
 
 .sub-text {
     margin: 2px 0;
+    color: #666;
+}
+
+.manage-date-title {
+    margin: 0 0 6px;
+    font-weight: bold;
+    font-size: 20px;
+}
+
+.manage-date-note,
+.weekday-note {
+    margin: 0 0 10px;
     color: #666;
 }
 
@@ -210,6 +252,43 @@ button:disabled {
 .unsaved-note {
     margin: 12px 0 0;
     color: #e65100;
+}
+
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+}
+
+.legend-mark {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    background-color: white;
+    border: 2px solid #ccc;
+}
+
+.legend-mark.planned {
+    background-color: #2f7de1;
+    border-color: #2f7de1;
+}
+
+.legend-mark.absent {
+    background-color: #e5484d;
+    border-color: #e5484d;
+}
+
+.legend-mark.changed {
+    border: 3px dashed #ff9800;
 }
 
 .save-button {

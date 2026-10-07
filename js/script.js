@@ -356,7 +356,15 @@ function renderDayView() {
     const dayReservations = reservations.filter((reservation) => reservation.date === dateString);
 
     if (dayReservations.length === 0) {
-        return `<p class="empty-message">予約がありません</p>`;
+        return `
+      <div class="empty-message">
+        <p class="empty-title">予約がありません</p>
+        <p>この日はまだ予約が登録されていません。</p>
+        <p>予約管理から、予約したい生徒と日付を選択して予約を登録してください。</p>
+        <p>予約を登録すると、当日の予約内容がこの画面に表示されます。</p>
+        <button class="manage-link-button">予約管理へ</button>
+      </div>
+    `;
     }
 
     // 過去の日付は見るだけにして、ボタンを押せなくする
@@ -548,13 +556,22 @@ function renderManage() {
     const saveDisabledAttr = changed ? "" : "disabled";
 
     manageElement.innerHTML = `
+      <p class="manage-date-title">予約する日付を選択してください</p>
+      <p class="manage-date-note">下のカレンダーから予約する日付を選択してください。</p>
+      <p class="manage-date-note">日付を選択したら、「予約内容を保存」を押して予約を保存して登録してください。</p>
       <div class="student-summary">${summaryHtml}</div>
       <div class="nav">
         <button class="manage-nav-button" data-diff="-1">前月</button>
         <h2 class="nav-title">${year}年${month}月</h2>
         <button class="manage-nav-button" data-diff="1">翌月</button>
       </div>
+      <p class="weekday-note">曜日（日〜土）をタップすると、その月のその曜日をまとめて選択できます。</p>
       <div class="calendar-grid">${cellsHtml}</div>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-mark planned"></span>出席予定</span>
+        <span class="legend-item"><span class="legend-mark absent"></span>欠席</span>
+        <span class="legend-item"><span class="legend-mark changed"></span>未保存の変更</span>
+      </div>
       ${unsavedNote}
       <button class="save-button" ${saveDisabledAttr}>予約内容を保存</button>
     `;
@@ -604,6 +621,8 @@ document.addEventListener("click", (event) => {
         render();
     } else if (button.classList.contains("save-button")) {
         saveDraft();
+    } else if (button.classList.contains("manage-link-button")) {
+        document.querySelectorAll(".tab-button")[1].click();
     }
 });
 
